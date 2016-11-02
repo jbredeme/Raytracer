@@ -5,7 +5,7 @@
 # Copyright © 2016 All rights reserved 
 
 all: main.o json.o ppm.o raycaster.o
-	gcc main.o json.o ppm.o raycaster.o -o raycast
+	gcc main.o json.o ppm.o raycaster.o -o raytrace
 	
 main.o: main.c
 	gcc -c main.c
