@@ -33,6 +33,9 @@ typedef struct Plane {
 	double diffuse_color[3];
 	double specular_color[3];		
 	double normal[3];
+	double reflectivity;
+	double refractivity;
+	double ior;
 	
 } Plane;
 
@@ -47,6 +50,9 @@ typedef struct Sphere {
 	double diffuse_color[3];
 	double specular_color[3];	
 	double radius;
+	double reflectivity;
+	double refractivity;
+	double ior;	
 	
 } Sphere;
 
