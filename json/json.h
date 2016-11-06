@@ -1,7 +1,7 @@
 /**
  * Author: Jarid Bredemeier
  * Email: jpb64@nau.edu
- * Date: Thursday, October 6, 2016
+ * Date: Tuesday, November 1, 2016
  * File: json.h
  * Copyright © 2016 All rights reserved 
  */
@@ -35,7 +35,7 @@ typedef struct Plane {
 	double normal[3];
 	double reflectivity;
 	double refractivity;
-	double ior;
+	double ior;	
 	
 } Plane;
 

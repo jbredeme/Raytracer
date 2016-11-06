@@ -1,7 +1,7 @@
 /**
  * Author: Jarid Bredemeier
  * Email: jpb64@nau.edu
- * Date: Thursday, October 6, 2016
+ * Date: Tuesday, November 1, 2016
  * File: json.c
  * Copyright © 2016 All rights reserved 
  */
@@ -263,7 +263,10 @@ void print_scene(Object *objects, int num_objects) {
 				printf("Position: %lf %lf %lf\n", objects[count].properties.sphere.position[0], objects[count].properties.sphere.position[1], objects[count].properties.sphere.position[2]);
 				printf("Diffuse Color: %lf %lf %lf\n", objects[count].properties.sphere.diffuse_color[0], objects[count].properties.sphere.diffuse_color[1], objects[count].properties.sphere.diffuse_color[2]);
 				printf("Specular Color: %lf %lf %lf\n", objects[count].properties.sphere.specular_color[0], objects[count].properties.sphere.specular_color[1], objects[count].properties.sphere.specular_color[2]);
-				printf("Radius: %lf\n\n", objects[count].properties.sphere.radius);
+				printf("Radius: %lf\n", objects[count].properties.sphere.radius);
+				printf("Reflectivity: %lf\n", objects[count].properties.sphere.reflectivity);
+				printf("Refractivity: %lf\n", objects[count].properties.sphere.refractivity);
+				printf("Index of Refraction: %lf\n\n", objects[count].properties.sphere.ior);
 				
 			}
 			
@@ -273,7 +276,10 @@ void print_scene(Object *objects, int num_objects) {
 				printf("Position: %lf %lf %lf\n", objects[count].properties.plane.position[0], objects[count].properties.plane.position[1], objects[count].properties.plane.position[2]);
 				printf("Diffuse Color: %lf %lf %lf\n", objects[count].properties.plane.diffuse_color[0], objects[count].properties.plane.diffuse_color[1], objects[count].properties.plane.diffuse_color[2]);
 				printf("Specular Color: %lf %lf %lf\n", objects[count].properties.plane.specular_color[0], objects[count].properties.plane.specular_color[1], objects[count].properties.plane.specular_color[2]);						
-				printf("Normal: %lf %lf %lf\n\n", objects[count].properties.plane.normal[0], objects[count].properties.plane.normal[1], objects[count].properties.plane.normal[2]);			
+				printf("Normal: %lf %lf %lf\n", objects[count].properties.plane.normal[0], objects[count].properties.plane.normal[1], objects[count].properties.plane.normal[2]);		
+				printf("Reflectivity: %lf\n", objects[count].properties.plane.reflectivity);
+				printf("Refractivity: %lf\n", objects[count].properties.plane.refractivity);
+				printf("Index of Refraction: %lf\n\n", objects[count].properties.plane.ior);				
 			
 			}
 			
@@ -733,8 +739,95 @@ int json_read_scene(FILE *fpointer, Object objects[]) {
 					
 				}	 
 			   
+			} else if(strcmp(name, "reflectivity") == 0) {
+				// Skip whitespace(s), read in the next character and advance the stream position indicator
+				skip_whitespace(fpointer);
+				token = get_char(fpointer);
+
+				if(token != ':') {
+					fprintf(stderr, "Error, line number %d; invalid separator '%c', expected character '%c'.\n", line_num, token, ':');
+					// Close file stream flush all buffers
+					fclose(fpointer);		
+					exit(-1);
+					
+				} else {
+					skip_whitespace(fpointer);
+					
+					// Validates against object defintions without a type defined. That is all 
+					// objects and object properties associated to a type value of NULL are ignored
+					if(objects[index].type != NULL) {
+						if(strcmp(objects[index].type, "sphere") == 0) {
+							objects[index].properties.sphere.reflectivity = get_double(fpointer);					
+							
+						} else if(strcmp(objects[index].type, "plane") == 0) {
+							objects[index].properties.plane.reflectivity = get_double(fpointer);
+							
+						}
+						
+					}
+					
+				}				
+				
+			} else if(strcmp(name, "refractivity") == 0) {
+				// Skip whitespace(s), read in the next character and advance the stream position indicator
+				skip_whitespace(fpointer);
+				token = get_char(fpointer);
+
+				if(token != ':') {
+					fprintf(stderr, "Error, line number %d; invalid separator '%c', expected character '%c'.\n", line_num, token, ':');
+					// Close file stream flush all buffers
+					fclose(fpointer);		
+					exit(-1);
+					
+				} else {
+					skip_whitespace(fpointer);
+					
+					// Validates against object defintions without a type defined. That is all 
+					// objects and object properties associated to a type value of NULL are ignored
+					if(objects[index].type != NULL) {
+						if(strcmp(objects[index].type, "sphere") == 0) {
+							objects[index].properties.sphere.refractivity = get_double(fpointer);					
+							
+						} else if(strcmp(objects[index].type, "plane") == 0) {
+							objects[index].properties.plane.refractivity = get_double(fpointer);
+							
+						}
+						
+					}
+					
+				}				
+				
+			} else if(strcmp(name, "ior") == 0) {
+				// Skip whitespace(s), read in the next character and advance the stream position indicator
+				skip_whitespace(fpointer);
+				token = get_char(fpointer);
+
+				if(token != ':') {
+					fprintf(stderr, "Error, line number %d; invalid separator '%c', expected character '%c'.\n", line_num, token, ':');
+					// Close file stream flush all buffers
+					fclose(fpointer);		
+					exit(-1);
+					
+				} else {
+					skip_whitespace(fpointer);
+					
+					// Validates against object defintions without a type defined. That is all 
+					// objects and object properties associated to a type value of NULL are ignored
+					if(objects[index].type != NULL) {
+						if(strcmp(objects[index].type, "sphere") == 0) {
+							objects[index].properties.sphere.ior = get_double(fpointer);					
+							
+						} else if(strcmp(objects[index].type, "plane") == 0) {
+							objects[index].properties.plane.ior = get_double(fpointer);
+							
+						}
+						
+					}
+					
+				}				
+				
 			} else {
-				fprintf(stderr, "Error, line number %d; invalid type '%s'.\n", name);
+				fprintf(stderr, "Error, line number %d; invalid type '%s'.\n", line_num, name);
 				// Close file stream flush all buffers
 				fclose(fpointer);		
 				exit(-1);				
