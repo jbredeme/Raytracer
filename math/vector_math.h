@@ -1,7 +1,7 @@
 /**
  * Author: Jarid Bredemeier
  * Email: jpb64@nau.edu
- * Date: Thursday, October 6, 2016
+ * Date: Tuesday, November 1, 2016
  * File: vector_math.h
  * Copyright © 2016 All rights reserved 
  */
