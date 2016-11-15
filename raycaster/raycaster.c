@@ -333,7 +333,7 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 		normalize(rd);
 		normalize(normal);
 		vector_reflection(rd, normal, reflection_vector);
-		//normalize(reflected_rd);
+		normalize(reflected_rd);
 
 		// Execute object intersection test on reflection vector
 		for(index = 0; index < num_objects; index++) {
@@ -357,28 +357,28 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 			}
 			
 		}
-
+		//double temp_reflectivity = 0.0;
 		if(best_distance2 == INFINITY) {
 			// Set default color
 			pixel_coloring[0] = pixel_coloring[1] = pixel_coloring[2] = 0;
 
 		} else {
-			depth = depth + 1;  // <= increment depth counter
-			
 			// Recursive Call
-			colorer(objects, num_objects, reflected_ro, reflected_rd, best_distance2, closest_object2, reflection_color, depth);
+			colorer(objects, num_objects, reflected_ro, reflected_rd, best_distance2, closest_object2, reflection_color, depth + 1);
 			
-			if((objects[index].type) != NULL) { // <= Check against type nulls
-				if(strcmp((objects[index].type), "sphere") == 0) {
-					vector_scale(reflection_color, objects[index].properties.sphere.reflectivity, reflection_color);
+			if((objects[closest_object].type) != NULL) { // <= Check against type nulls
+				if(strcmp((objects[closest_object].type), "sphere") == 0) {
+					vector_scale(reflection_color, objects[closest_object].properties.sphere.reflectivity, reflection_color);
+					//temp_reflectivity = objects[closest_object].properties.sphere.reflectivity;
 				
-				} else if(strcmp((objects[index].type), "plane") == 0) {
-					vector_scale(reflection_color, objects[index].properties.sphere.reflectivity, reflection_color);
+				} else if(strcmp((objects[closest_object].type), "plane") == 0) {
+					vector_scale(reflection_color, objects[closest_object].properties.sphere.reflectivity, reflection_color);
+					//temp_reflectivity = objects[closest_object].properties.plane.reflectivity;
 					
 				}
 				
 			}
-
+			//printf("Reflection Color; %d, %d, %d\n", reflection_color[0], reflection_color[1], reflection_color[2]);
 			light_direction[0] = light_direction[1] = light_direction[2] = 0.0;
 			vector_scale(reflection_vector, -1, light_direction);
 			vector_scale(reflected_rd, best_distance2, reflected_rd);
@@ -400,24 +400,26 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 			}
 
 			// Set default value for reflection vector
-			double reflection_vector2[3];
-			reflection_vector2[0] = reflection_vector2[1] = reflection_vector2[2] = 0.0;
+			reflection_vector[0] = reflection_vector[1] = reflection_vector[2] = 0.0;
 			
 			normalize(normal); //<= Normalize normal
 			normalize(new_rd); //<= Normalize new ray direction
-			vector_reflection(new_rd, normal, reflection_vector2);
+			vector_reflection(new_rd, normal, reflection_vector);
 			
 			// Set default values for diffuse and specular output vectors
 			diffuse_out[0] = diffuse_out[1] = diffuse_out[2] = 0.0;
 			specular_out[0] = specular_out[1] = specular_out[2] = 0.0;
 			
 			diffuse_reflection(normal, new_rd, reflection_color, diffuse_color, diffuse_out);
-			specular_highlight(normal, new_rd, reflection_vector2, rd, specular_color, reflection_color, specular_out);
+			specular_highlight(normal, new_rd, reflection_vector, rd, specular_color, reflection_color, specular_out);
 		
+			// Set angular and radial default values
+			fang_out = frad_out = 1.0;
+			
 			// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
-			pixel_coloring[0] += 1.0 * (diffuse_out[0] + specular_out[0]);
-			pixel_coloring[1] += 1.0 * (diffuse_out[1] + specular_out[1]);
-			pixel_coloring[2] += 1.0 * (diffuse_out[2] + specular_out[2]);		
+			pixel_coloring[0] += fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
+			pixel_coloring[1] += fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
+			pixel_coloring[2] += fang_out * frad_out * (diffuse_out[2] + specular_out[2]);		
 
 		}
 
@@ -517,9 +519,13 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 					pixel_coloring[2] += fang_out * frad_out * (diffuse_out[2] + specular_out[2]);
 					
 				}
+				
 			}
+			
 		}	
+		
 	}	 
+	
  }
 
 
@@ -612,6 +618,7 @@ Image* raycaster(Object objects[], Image *image, int num_objects) {
 			
 			// Object intersection detected
 			if((best_distance > 0) && (best_distance != INFINITY)) {
+				// Calcuate reflection, refraction
 				colorer(objects, num_objects, ro, rd, best_distance, closest_object, pixel_coloring, 0);
 					
 				// Set 8-bit RGB default values
