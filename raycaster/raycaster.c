@@ -268,7 +268,35 @@ double plane_intersection(double *ro, double *rd, double *pos, double *normal) {
 	}
 	
 }
+/**
+ * TODO
+ *
+ * @param TODO
+ * @param TODO
+ * @param TODO
+ * @returns TODO
+ */
+ void refraction(double *direction, double *position, double normal, double ior, double *refraction_vector) {
+	double vector_a[3] = {0, 0, 0};
+	double vector_b[3] = {0, 0, 0};
 
+	normalize(direction);
+	normalize(position);
+	normalize(normal);
+	
+	// calculate vector angle and direction
+	vector_cross_product(normal, direction, vector_a);
+	normalize(vector_a);
+	vector_cross_product(vector_a, normal, vector_b);
+	normalize(vector_b);
+	sin_phi = vector_dot_product(direction, vector_b) * ior;
+	normalize(vector_b);
+	vector_scale(normal, (sqrt(1.0 - pow((vector_dot_product(direction, vector_b) * ior), 2))), normal);
+	vector_scale(vector_b, (vector_dot_product(direction, vector_b) * ior), vector_b);
+	normalize(vector_b);
+	vector_add(vector_b, normal, refraction_vector);
+		
+ }
 
 /**
  * TODO
