@@ -278,7 +278,7 @@ double plane_intersection(double *ro, double *rd, double *pos, double *normal) {
  * @param TODO
  * @returns TODO
  */
-void r_shader(Object objects[], int num_objects, double *ro, double *rd, double best_distance, int closest_object, double *pixel_coloring) {
+void colorer(Object objects[], int num_objects, double *ro, double *rd, double best_distance, int closest_object, double *pixel_coloring, int depth) {
 	double new_ro[3]; 					//<= view vector orgin
 	double new_rd[3]; 					//<= view vector direction
 	double normal[3]; 					//<= normal vector
@@ -290,49 +290,188 @@ void r_shader(Object objects[], int num_objects, double *ro, double *rd, double 
 	double diffuse_out[3];				//<= diffuse scalar
 	double specular_out[3];				//<= specular scalar
 	double fang_out, frad_out;			//<= angular and radial attenuation output
-	int index, index2;                  //<= iteration counters
+	double reflected_ro[3];             //<= reflected vector orgin
+	double reflected_rd[3];             //<= reflected vector direction
+	double reflection_color[3];         //<= reflected color
+    int index, index2;                  //<= iteration counters
+	int closest_object2;                //<= 
 
-	
-	// Set default values for incident ray
+	// Set vector default values
 	new_ro[0] = new_ro[1] = new_ro[2] = 0.0;
 	new_rd[0] = new_rd[1] = new_rd[2] = 0.0;
+	normal[0] = normal[1] = normal[2] = 0.0;
+	
+	reflected_ro[0] = reflected_ro[1] = reflected_ro[2] = 0;
+	reflected_rd[0] = reflected_rd[1] = reflected_rd[2] = 0;
+	
+	reflection_vector[0] = reflection_vector[1] = reflection_vector[2] = 0.0;
+	reflection_color[0] = reflection_color[1] = reflection_color[2] = 0.0;
+	
+	closest_object2 = 0;
 
 	// Establish orgin for the new ray
 	vector_scale(rd, best_distance, new_ro);
 	vector_add(ro, new_ro, new_ro);
+	
+	// Recursive base case, depth limit
+	if(depth > MAXIMUM_RECURSION_DEPTH) {
+		// Set default color
+		pixel_coloring[0] = pixel_coloring[1] = pixel_coloring[2] = 0;
+		//printf("Base Case\n");
+		return;
+		
+	} else {
+		// Get normal vector
+		if(strcmp((objects[closest_object].type), "sphere") == 0) {
+			vector_subtract(new_ro, objects[closest_object].properties.sphere.position, normal);
+			
+		} else if(strcmp((objects[closest_object].type), "plane") == 0) {
+			vector_copy((objects[closest_object].properties.plane.normal), normal);									
 
-	// Iterate through light objects
-	for(index = 0; index < num_objects; index++) {
-		if(strcmp(objects[index].type, "light") == 0) {
+		}
+
+		normalize(rd);
+		normalize(normal);
+		vector_reflection(rd, normal, reflection_vector);
+		//normalize(reflected_rd);
+
+		// Execute object intersection test on reflection vector
+		for(index = 0; index < num_objects; index++) {
+			distance2 = 0;
 			
-			// Set default light distance
-			light_distance = 0.0;
-			
-			// Calcuate new ray direction
-			vector_subtract(objects[index].properties.light.position, new_ro, new_rd);
-			light_distance = vector_length(new_rd);
-			normalize(new_rd);	//<= Normalize new ray direction
-			
-			// Set default value
-			best_distance2 = INFINITY;
-			
-			// Execute shadow intersection test
-			for(index2 = 0; index2 < num_objects; index2++) {
-				distance2 = 0.0;	// <= reset distance each iteration
+			if((objects[index].type) != NULL) { // <= Check against type nulls
+				if(strcmp((objects[index].type), "sphere") == 0) {
+					distance2 = sphere_intersection(reflected_ro, reflected_rd, objects[index].properties.sphere.position, objects[index].properties.sphere.radius);
 				
-				if(closest_object != index2) {				// <= prevent self intersecting
-					if((objects[index2].type) != NULL) { 	// <= check against type nulls
-						if(strcmp((objects[index2].type), "sphere") == 0) {
-							distance2 = sphere_intersection(new_ro, new_rd, objects[index2].properties.sphere.position, objects[index2].properties.sphere.radius);
-						
-						} else if(strcmp((objects[index2].type), "plane") == 0) {
-							distance2 = plane_intersection(new_ro, new_rd, objects[index2].properties.plane.position, objects[index2].properties.plane.normal);
+				} else if(strcmp((objects[index].type), "plane") == 0) {
+					distance2 = plane_intersection(reflected_ro, reflected_rd, objects[index].properties.plane.position, objects[index].properties.plane.normal);
+			
+				}
+				
+				if ((distance2 > 0) && (distance2 < (best_distance2))) {
+					closest_object2 = index;    // <= array index of object
+					best_distance2 = distance2;	// <= closest distance value
 					
-						}
+				}
+				
+			}
+			
+		}
+
+		if(best_distance2 == INFINITY) {
+			// Set default color
+			pixel_coloring[0] = pixel_coloring[1] = pixel_coloring[2] = 0;
+
+		} else {
+			//printf("depth %d\n", depth);
+			//printf("Number of Objects %d\n", num_objects);
+			//printf("Reflected Vector Orgin: %lf, %lf, %lf\n", reflected_ro[0], reflected_ro[1], reflected_ro[2]);
+			//printf("Reflected Vector Direction: %lf, %lf, %lf\n", reflected_rd[0], reflected_rd[1], reflected_rd[2]);
+			//printf("Best Distance: %lf\n", best_distance2);
+			//printf("Closest Object: %d\n", closest_object2);
+			//printf("Reflected Color: %lf, %lf, %lf\n", reflection_color[0], reflection_color[1], reflection_color[2]);
+			
+			depth = depth + 1;  // <= increment depth counter
+			
+			// Recursive Call
+			colorer(objects, num_objects, reflected_ro, reflected_rd, best_distance2, closest_object2, reflection_color, depth);
+			
+			if((objects[index].type) != NULL) { // <= Check against type nulls
+				if(strcmp((objects[index].type), "sphere") == 0) {
+					vector_scale(reflection_color, objects[index].properties.sphere.reflectivity, reflection_color);
+				
+				} else if(strcmp((objects[index].type), "plane") == 0) {
+					vector_scale(reflection_color, objects[index].properties.sphere.reflectivity, reflection_color);
+					
+				}	
+			}
+			
+			double light_direction[3] = {0, 0, 0};
+			double light_color[3] = {0, 0, 0};
+			
+			vector_scale(reflection_vector, -1, light_direction);
+			vector_copy(reflection_color, light_color);
+			vector_scale(reflected_rd, best_distance2, reflected_rd);
+			vector_subtract(reflected_rd, new_ro, new_rd);
+			normalize(new_rd);
+			
+			if((objects[closest_object].type) != NULL) {
+				if(strcmp((objects[closest_object].type), "sphere") == 0) {
+					vector_subtract(new_ro, objects[closest_object].properties.sphere.position, normal);
+					vector_copy((objects[closest_object].properties.sphere.diffuse_color), diffuse_color);
+					vector_copy((objects[closest_object].properties.sphere.specular_color), specular_color);
+					
+				} else if(strcmp((objects[closest_object].type), "plane") == 0) {
+					vector_copy((objects[closest_object].properties.plane.normal), normal);
+					vector_copy((objects[closest_object].properties.plane.diffuse_color), diffuse_color);
+					vector_copy((objects[closest_object].properties.plane.specular_color), specular_color);									
+
+				}
+				
+			}
+
+			// Set default value for reflection vector		
+			reflection_vector[0] = reflection_vector[1] = reflection_vector[2] = 0.0;
+			
+			normalize(normal); //<= Normalize normal
+			normalize(new_rd); //<= Normalize new ray direction
+			vector_reflection(new_rd, normal, reflection_vector);
+			
+			// Set default values for diffuse and specular output vectors
+			diffuse_out[0] = diffuse_out[1] = diffuse_out[2] = 0.0;
+			specular_out[0] = specular_out[1] = specular_out[2] = 0.0;
+			
+			diffuse_reflection(normal, new_rd, reflection_color, diffuse_color, diffuse_out);
+			specular_highlight(normal, new_rd, reflection_vector, rd, specular_color, reflection_color, specular_out);
+			
+			// Set angular and radial default values
+			fang_out = frad_out = 0.0;
+			
+			// Get angular and radial attenuation values
+			fang_out = fang((objects[index].properties.light.radial_a0), (objects[index].properties.light.theta), (objects[index].properties.light.direction), new_rd); 
+			frad_out = frad((objects[index].properties.light.radial_a0), (objects[index].properties.light.radial_a1), (objects[index].properties.light.radial_a2), light_distance);
+			
+			// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
+			pixel_coloring[0] = fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
+			pixel_coloring[1] = fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
+			pixel_coloring[2] = fang_out * frad_out * (diffuse_out[2] + specular_out[2]);		
+
+		}	
+
+		// Iterate through light objects
+		for(index = 0; index < num_objects; index++) {
+			if(strcmp(objects[index].type, "light") == 0) {
+				
+				// Set default light distance
+				light_distance = 0.0;
+				
+				// Calcuate new ray direction
+				vector_subtract(objects[index].properties.light.position, new_ro, new_rd);
+				light_distance = vector_length(new_rd);
+				normalize(new_rd);	//<= Normalize new ray direction
+				
+				// Set default value
+				best_distance2 = INFINITY;
+				
+				// Execute shadow intersection test
+				for(index2 = 0; index2 < num_objects; index2++) {
+					distance2 = 0.0;	// <= reset distance each iteration
+					
+					if(closest_object != index2) {				// <= prevent self intersecting
+						if((objects[index2].type) != NULL) { 	// <= check against type nulls
+							if(strcmp((objects[index2].type), "sphere") == 0) {
+								distance2 = sphere_intersection(new_ro, new_rd, objects[index2].properties.sphere.position, objects[index2].properties.sphere.radius);
+							
+							} else if(strcmp((objects[index2].type), "plane") == 0) {
+								distance2 = plane_intersection(new_ro, new_rd, objects[index2].properties.plane.position, objects[index2].properties.plane.normal);
 						
-						if(distance2 <= light_distance) {
-							if ((distance2 > 0) && (distance2 < (best_distance2))) {
-								best_distance2 = distance2;	// <= closest distance value
+							}
+							
+							if(distance2 <= light_distance) {
+								if ((distance2 > 0) && (distance2 < (best_distance2))) {
+									best_distance2 = distance2;	// <= closest distance value
+									
+								}
 								
 							}
 							
@@ -340,64 +479,62 @@ void r_shader(Object objects[], int num_objects, double *ro, double *rd, double 
 						
 					}
 					
-				}
+				} // End-of-Object Iteration Loop						
 				
-			} // End-of-Object Iteration Loop						
-			
-			// Set default values for diffuse and specular colors
-			diffuse_color[0] = diffuse_color[1] = diffuse_color[2] = 0.0;
-			specular_color[0] = specular_color[1] = specular_color[2] = 0.0;
-			
-			// Set default value for the normal vector
-			normal[0] = normal[1] = normal[2] = 0.0;
+				// Set default values for diffuse and specular colors
+				diffuse_color[0] = diffuse_color[1] = diffuse_color[2] = 0.0;
+				specular_color[0] = specular_color[1] = specular_color[2] = 0.0;
+				
+				// Set default value for the normal vector
+				normal[0] = normal[1] = normal[2] = 0.0;
 
-			// No intersection detected
-			if(best_distance2 == INFINITY) {
-				if((objects[closest_object].type) != NULL) {
-					if(strcmp((objects[closest_object].type), "sphere") == 0) {
-						vector_copy((objects[closest_object].properties.sphere.position), normal);
-						vector_subtract(new_ro, objects[closest_object].properties.sphere.position, normal);
-						vector_copy((objects[closest_object].properties.sphere.diffuse_color), diffuse_color);
-						vector_copy((objects[closest_object].properties.sphere.specular_color), specular_color);
+				// No intersection detected
+				if(best_distance2 == INFINITY) {
+					if((objects[closest_object].type) != NULL) {
+						if(strcmp((objects[closest_object].type), "sphere") == 0) {
+							vector_copy((objects[closest_object].properties.sphere.position), normal);
+							vector_subtract(new_ro, objects[closest_object].properties.sphere.position, normal);
+							vector_copy((objects[closest_object].properties.sphere.diffuse_color), diffuse_color);
+							vector_copy((objects[closest_object].properties.sphere.specular_color), specular_color);
+							
+						} else if(strcmp((objects[closest_object].type), "plane") == 0) {
+							vector_copy((objects[closest_object].properties.plane.normal), normal);
+							vector_copy((objects[closest_object].properties.plane.diffuse_color), diffuse_color);
+							vector_copy((objects[closest_object].properties.plane.specular_color), specular_color);									
+
+						}
 						
-					} else if(strcmp((objects[closest_object].type), "plane") == 0) {
-						vector_copy((objects[closest_object].properties.plane.normal), normal);
-						vector_copy((objects[closest_object].properties.plane.diffuse_color), diffuse_color);
-						vector_copy((objects[closest_object].properties.plane.specular_color), specular_color);									
-
 					}
+			
+					// Set default value for reflection vector		
+					reflection_vector[0] = reflection_vector[1] = reflection_vector[2] = 0.0;
+					
+					normalize(normal); //<= Normalize normal
+					normalize(new_rd); //<= Normalize new ray direction
+					vector_reflection(new_rd, normal, reflection_vector);
+					
+					// Set default values for diffuse and specular output vectors
+					diffuse_out[0] = diffuse_out[1] = diffuse_out[2] = 0.0;
+					specular_out[0] = specular_out[1] = specular_out[2] = 0.0;
+					
+					diffuse_reflection(normal, new_rd, (objects[index].properties.light.color), diffuse_color, diffuse_out);
+					specular_highlight(normal, new_rd, reflection_vector, rd, specular_color, (objects[index].properties.light.color), specular_out);
+					
+					// Set angular and radial default values
+					fang_out = frad_out = 0.0;
+					
+					// Get angular and radial attenuation values
+					fang_out = fang((objects[index].properties.light.radial_a0), (objects[index].properties.light.theta), (objects[index].properties.light.direction), new_rd); 
+					frad_out = frad((objects[index].properties.light.radial_a0), (objects[index].properties.light.radial_a1), (objects[index].properties.light.radial_a2), light_distance);
+					
+					// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
+					pixel_coloring[0] = fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
+					pixel_coloring[1] = fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
+					pixel_coloring[2] = fang_out * frad_out * (diffuse_out[2] + specular_out[2]);
 					
 				}
-		
-				// Set default value for reflection vector		
-				reflection_vector[0] = reflection_vector[1] = reflection_vector[2] = 0.0;
-				
-				normalize(normal); //<= Normalize normal
-				normalize(new_rd); //<= Normalize new ray direction
-				vector_reflection(new_rd, normal, reflection_vector);
-				
-				// Set default values for diffuse and specular output vectors
-				diffuse_out[0] = diffuse_out[1] = diffuse_out[2] = 0.0;
-				specular_out[0] = specular_out[1] = specular_out[2] = 0.0;
-				
-				diffuse_reflection(normal, new_rd, (objects[index].properties.light.color), diffuse_color, diffuse_out);
-				specular_highlight(normal, new_rd, reflection_vector, rd, specular_color, (objects[index].properties.light.color), specular_out);
-				
-				// Set angular and radial default values
-				fang_out = frad_out = 0.0;
-				
-				// Get angular and radial attenuation values
-				fang_out = fang((objects[index].properties.light.radial_a0), (objects[index].properties.light.theta), (objects[index].properties.light.direction), new_rd); 
-				frad_out = frad((objects[index].properties.light.radial_a0), (objects[index].properties.light.radial_a1), (objects[index].properties.light.radial_a2), light_distance);
-				
-				// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
-				pixel_coloring[0] = fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
-				pixel_coloring[1] = fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
-				pixel_coloring[2] = fang_out * frad_out * (diffuse_out[2] + specular_out[2]);
-				
 			}
-			
-		}
+		}	
 	}	 
  }
 
@@ -416,19 +553,8 @@ Image* raycaster(Object objects[], Image *image, int num_objects) {
 	double pixel_height, pixel_width;	//<= image height and width in pixels
 	double h, w;						//<= height and width of the camera
 	double cx, cy; 						//<= center of pixel
-//	double new_ro[3]; 					//<= view vector orgin
-//	double new_rd[3]; 					//<= view vector direction
-//	double normal[3]; 					//<= normal vector
-//	double reflection_vector[3];		//<= reflection vector
 	double distance, best_distance;		//<= Raycaster intersection distance result(s)
-//	double distance2, best_distance2; 	//<= Shadow intersection distance result(s)
-//	double light_distance;				//<= distance to the light
-//	double diffuse_color[3];			//<= object's diffuse color
-//	double specular_color[3];			//<= object's specular color
-//	double diffuse_out[3];				//<= diffuse scalar
-//	double specular_out[3];				//<= specular scalar
 	double ro[3], rd[3];				//<= view vector orgin and direction
-//	double fang_out, frad_out;			//<= angular and radial attenuation output
 	double red, green, blue;			//<= 8-bit RBG storage
 	double pixel_coloring[3]; 	 		//<= final coloring vector
 	int row, column, index, index2; 	//<= iteration counters
@@ -502,8 +628,7 @@ Image* raycaster(Object objects[], Image *image, int num_objects) {
 			
 			// Object intersection detected
 			if((best_distance > 0) && (best_distance != INFINITY)) {
-				
-				r_shader(objects, num_objects, ro, rd, best_distance, closest_object, pixel_coloring);
+				colorer(objects, num_objects, ro, rd, best_distance, closest_object, pixel_coloring, 0);
 					
 				// Set 8-bit RGB default values
 				red = green = blue = 0.0;
