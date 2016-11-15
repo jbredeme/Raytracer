@@ -387,11 +387,11 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 		}
 		//double temp_reflectivity = 0.0;
 		if(best_distance2 == INFINITY) {
-			// Set default color
+			// Set default color, no object was intersected
 			pixel_coloring[0] = pixel_coloring[1] = pixel_coloring[2] = 0;
 
 		} else {
-			// Recursive Call
+			// Recursive call to colorer
 			colorer(objects, num_objects, reflected_ro, reflected_rd, best_distance2, closest_object2, reflection_color, depth + 1);
 			
 			if((objects[closest_object].type) != NULL) { // <= Check against type nulls
@@ -443,6 +443,11 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 		
 			// Set angular and radial default values
 			fang_out = frad_out = 1.0;
+			
+			// Get angular and radial attenuation values
+			//fang_out = fang((objects[index].properties.light.radial_a0), (objects[index].properties.light.theta), (objects[index].properties.light.direction), new_rd); 
+			//frad_out = frad((objects[index].properties.light.radial_a0), (objects[index].properties.light.radial_a1), (objects[index].properties.light.radial_a2), light_distance);
+			
 			
 			// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
 			pixel_coloring[0] += fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
