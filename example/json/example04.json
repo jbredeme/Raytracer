@@ -15,6 +15,16 @@
         "position": [0, 1, 5]
     },
     {
+        "type": "sphere",
+        "radius": 0.35,
+        "reflectivity": 0.2,
+        "refractivity": 0.3,
+        "ior": 1.33,
+        "diffuse_color": [.13, .25, .53],
+        "specular_color": [1, 1, 1],
+        "position": [0, .45, 2.5]
+    },	
+    {
         "type": "plane",
         "normal": [0, 1, 0],
         "diffuse_color": [0, 1, 0],
