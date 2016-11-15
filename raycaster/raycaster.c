@@ -283,7 +283,7 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 	double new_rd[3]; 					//<= view vector direction
 	double normal[3]; 					//<= normal vector
 	double reflection_vector[3];		//<= reflection vector
-	double distance2, best_distance2; 	//<= Shadow intersection distance result(s)
+	double distance, best_distance2; 	//<= Shadow intersection distance result(s)
 	double light_distance;				//<= distance to the light
 	double diffuse_color[3];			//<= object's diffuse color
 	double specular_color[3];			//<= object's specular color
@@ -294,7 +294,8 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 	double reflected_rd[3];             //<= reflected vector direction
 	double reflection_color[3];         //<= reflected color
     int index, index2;                  //<= iteration counters
-	int closest_object2;                //<= 
+	int closest_object2;                
+	double light_direction[3];
 
 	// Set vector default values
 	new_ro[0] = new_ro[1] = new_ro[2] = 0.0;
@@ -317,7 +318,6 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 	if(depth > MAXIMUM_RECURSION_DEPTH) {
 		// Set default color
 		pixel_coloring[0] = pixel_coloring[1] = pixel_coloring[2] = 0;
-		//printf("Base Case\n");
 		return;
 		
 	} else {
@@ -337,20 +337,20 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 
 		// Execute object intersection test on reflection vector
 		for(index = 0; index < num_objects; index++) {
-			distance2 = 0;
+			distance = 0;
 			
 			if((objects[index].type) != NULL) { // <= Check against type nulls
 				if(strcmp((objects[index].type), "sphere") == 0) {
-					distance2 = sphere_intersection(reflected_ro, reflected_rd, objects[index].properties.sphere.position, objects[index].properties.sphere.radius);
+					distance = sphere_intersection(reflected_ro, reflected_rd, objects[index].properties.sphere.position, objects[index].properties.sphere.radius);
 				
 				} else if(strcmp((objects[index].type), "plane") == 0) {
-					distance2 = plane_intersection(reflected_ro, reflected_rd, objects[index].properties.plane.position, objects[index].properties.plane.normal);
+					distance = plane_intersection(reflected_ro, reflected_rd, objects[index].properties.plane.position, objects[index].properties.plane.normal);
 			
 				}
 				
-				if ((distance2 > 0) && (distance2 < (best_distance2))) {
+				if ((distance > 0) && (distance < (best_distance2))) {
 					closest_object2 = index;    // <= array index of object
-					best_distance2 = distance2;	// <= closest distance value
+					best_distance2 = distance;	// <= closest distance value
 					
 				}
 				
@@ -363,14 +363,6 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 			pixel_coloring[0] = pixel_coloring[1] = pixel_coloring[2] = 0;
 
 		} else {
-			//printf("depth %d\n", depth);
-			//printf("Number of Objects %d\n", num_objects);
-			//printf("Reflected Vector Orgin: %lf, %lf, %lf\n", reflected_ro[0], reflected_ro[1], reflected_ro[2]);
-			//printf("Reflected Vector Direction: %lf, %lf, %lf\n", reflected_rd[0], reflected_rd[1], reflected_rd[2]);
-			//printf("Best Distance: %lf\n", best_distance2);
-			//printf("Closest Object: %d\n", closest_object2);
-			//printf("Reflected Color: %lf, %lf, %lf\n", reflection_color[0], reflection_color[1], reflection_color[2]);
-			
 			depth = depth + 1;  // <= increment depth counter
 			
 			// Recursive Call
@@ -383,17 +375,14 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 				} else if(strcmp((objects[index].type), "plane") == 0) {
 					vector_scale(reflection_color, objects[index].properties.sphere.reflectivity, reflection_color);
 					
-				}	
+				}
+				
 			}
-			
-			double light_direction[3] = {0, 0, 0};
-			double light_color[3] = {0, 0, 0};
-			
+
+			light_direction[0] = light_direction[1] = light_direction[2] = 0.0;
 			vector_scale(reflection_vector, -1, light_direction);
-			vector_copy(reflection_color, light_color);
 			vector_scale(reflected_rd, best_distance2, reflected_rd);
 			vector_subtract(reflected_rd, new_ro, new_rd);
-			normalize(new_rd);
 			
 			if((objects[closest_object].type) != NULL) {
 				if(strcmp((objects[closest_object].type), "sphere") == 0) {
@@ -410,39 +399,34 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 				
 			}
 
-			// Set default value for reflection vector		
-			reflection_vector[0] = reflection_vector[1] = reflection_vector[2] = 0.0;
+			// Set default value for reflection vector
+			double reflection_vector2[3];
+			reflection_vector2[0] = reflection_vector2[1] = reflection_vector2[2] = 0.0;
 			
 			normalize(normal); //<= Normalize normal
 			normalize(new_rd); //<= Normalize new ray direction
-			vector_reflection(new_rd, normal, reflection_vector);
+			vector_reflection(new_rd, normal, reflection_vector2);
 			
 			// Set default values for diffuse and specular output vectors
 			diffuse_out[0] = diffuse_out[1] = diffuse_out[2] = 0.0;
 			specular_out[0] = specular_out[1] = specular_out[2] = 0.0;
 			
 			diffuse_reflection(normal, new_rd, reflection_color, diffuse_color, diffuse_out);
-			specular_highlight(normal, new_rd, reflection_vector, rd, specular_color, reflection_color, specular_out);
-			
-			// Set angular and radial default values
-			fang_out = frad_out = 0.0;
-			
-			// Get angular and radial attenuation values
-			fang_out = fang((objects[index].properties.light.radial_a0), (objects[index].properties.light.theta), (objects[index].properties.light.direction), new_rd); 
-			frad_out = frad((objects[index].properties.light.radial_a0), (objects[index].properties.light.radial_a1), (objects[index].properties.light.radial_a2), light_distance);
-			
+			specular_highlight(normal, new_rd, reflection_vector2, rd, specular_color, reflection_color, specular_out);
+		
 			// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
-			pixel_coloring[0] = fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
-			pixel_coloring[1] = fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
-			pixel_coloring[2] = fang_out * frad_out * (diffuse_out[2] + specular_out[2]);		
+			pixel_coloring[0] += 1.0 * (diffuse_out[0] + specular_out[0]);
+			pixel_coloring[1] += 1.0 * (diffuse_out[1] + specular_out[1]);
+			pixel_coloring[2] += 1.0 * (diffuse_out[2] + specular_out[2]);		
 
-		}	
+		}
 
 		// Iterate through light objects
 		for(index = 0; index < num_objects; index++) {
 			if(strcmp(objects[index].type, "light") == 0) {
 				
-				// Set default light distance
+				// Set defaults
+				new_rd[0] = new_rd[1] = new_rd[2] = 0;
 				light_distance = 0.0;
 				
 				// Calcuate new ray direction
@@ -455,21 +439,21 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 				
 				// Execute shadow intersection test
 				for(index2 = 0; index2 < num_objects; index2++) {
-					distance2 = 0.0;	// <= reset distance each iteration
+					distance = 0.0;	// <= reset distance each iteration
 					
 					if(closest_object != index2) {				// <= prevent self intersecting
 						if((objects[index2].type) != NULL) { 	// <= check against type nulls
 							if(strcmp((objects[index2].type), "sphere") == 0) {
-								distance2 = sphere_intersection(new_ro, new_rd, objects[index2].properties.sphere.position, objects[index2].properties.sphere.radius);
+								distance = sphere_intersection(new_ro, new_rd, objects[index2].properties.sphere.position, objects[index2].properties.sphere.radius);
 							
 							} else if(strcmp((objects[index2].type), "plane") == 0) {
-								distance2 = plane_intersection(new_ro, new_rd, objects[index2].properties.plane.position, objects[index2].properties.plane.normal);
+								distance = plane_intersection(new_ro, new_rd, objects[index2].properties.plane.position, objects[index2].properties.plane.normal);
 						
 							}
 							
-							if(distance2 <= light_distance) {
-								if ((distance2 > 0) && (distance2 < (best_distance2))) {
-									best_distance2 = distance2;	// <= closest distance value
+							if(distance <= light_distance) {
+								if ((distance > 0) && (distance < (best_distance2))) {
+									best_distance2 = distance;	// <= closest distance value
 									
 								}
 								
@@ -528,9 +512,9 @@ void colorer(Object objects[], int num_objects, double *ro, double *rd, double b
 					frad_out = frad((objects[index].properties.light.radial_a0), (objects[index].properties.light.radial_a1), (objects[index].properties.light.radial_a2), light_distance);
 					
 					// Add angular attenuation, radial attenuation, diffuse color and specular color to pixels
-					pixel_coloring[0] = fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
-					pixel_coloring[1] = fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
-					pixel_coloring[2] = fang_out * frad_out * (diffuse_out[2] + specular_out[2]);
+					pixel_coloring[0] += fang_out * frad_out * (diffuse_out[0] + specular_out[0]);
+					pixel_coloring[1] += fang_out * frad_out * (diffuse_out[1] + specular_out[1]);
+					pixel_coloring[2] += fang_out * frad_out * (diffuse_out[2] + specular_out[2]);
 					
 				}
 			}
